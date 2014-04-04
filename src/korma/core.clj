@@ -545,18 +545,21 @@
   (let [[db-keys foreign-ent] (db-keys-and-foreign-ent type ent sub-ent opts)
         fk-override (when-let [fk-key (:fk opts)]
                       {:fk (raw (eng/prefix foreign-ent fk-key))
-                       :fk-key fk-key})]
+                       :fk-key fk-key})
+        pk-override (when-let [pk-key (:pk opts)]
+                      {:pk (raw (eng/prefix ent pk-key))})]
     (merge {:table (:table sub-ent)
             :alias (:alias sub-ent)
             :rel-type type}
-           db-keys
-           fk-override)))
+            db-keys
+            fk-override
+            pk-override)))
 
 (defn rel [ent sub-ent type opts]
   (let [var-name (-> sub-ent meta :name)
         cur-ns *ns*]
     (assoc-in ent [:rel (name var-name)]
-              (delay
+              @(delay
                (let [resolved (ns-resolve cur-ns var-name)
                      sub-ent (when resolved (deref sub-ent))]
                  (when-not (map? sub-ent)
@@ -588,11 +591,8 @@
   `(rel ~ent (var ~sub-ent) :belongs-to ~opts))
 
 (defmacro has-many
-  "Add a has-many relation for the given entity. It is assumed that the foreign key
-  is on the sub-entity with the format table_id: user.id = email.user_id
-  Can optionally pass a map with a :fk key to explicitly set the foreign key.
-
-  (has-many users email {:fk :emailID})"
+  "Add a has-many relation for the given entity.
+  (has-many users email {:fk :emailID :pk :sponsor})"
   [ent sub-ent & [opts]]
   `(rel ~ent (var ~sub-ent) :has-many ~opts))
 
